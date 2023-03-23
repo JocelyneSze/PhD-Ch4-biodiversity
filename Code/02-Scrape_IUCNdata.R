@@ -1,6 +1,8 @@
 #### ========= Querying IUCN Red List API & BirdLife Datazone ======= ####
-# I need to know which species are forest specialists, and their altitude req.
+# Note: done on local computer, using R version 4.0.5
+# Identify which species are forest specialists, and their altitude ranges
 pacman::p_load(tidyverse, rredlist, rvest)
+## tidyverse v1.3, rredlist v0.7, rvest v1.0
 
 ### set IUCN Red List API 
 # from here: https://www.ucsbtidytuesday.com/post/2020-05-12-gordon-blasco-api/
