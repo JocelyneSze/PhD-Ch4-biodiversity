@@ -1,26 +1,18 @@
 #### ============ Make figures for manuscript ============== ####
 # Note: done in local computer, R version 4.1.1
-# TO BE FINALISED, DEPENDING ON WHETHER WE WANT SPECIES SILHOUETTE
-# OR JUST FACET LABELS
-# 19 Feb: decided to switch figures 1 and 2
-# rphylopic image_data gives SSL certificate problem: 
-# certificate has expired error. so for the new
-# no of species plot sticking with the facet labels
 
 library(tidyverse)
 library(patchwork) 
-library(sf) # for map fig 3
+# for Fig 3 map
+library(sf) 
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(RColorBrewer) 
-library(rphylopic) # for animal silhouettes. see https://jacintak.github.io/post/2021-08-01-rphylopic/
-library(egg) # to use geom_custom to put different animal silhouettes in each facet
 sf::sf_use_s2(FALSE)
 # tidyverse v1.3.1, patchwork v1.1.2, sf v1.0.4, rnaturalearth v0.1.0, rnaturalearthdata v0.1.0, RColorBrewer v1.1.2
-# rphylopic v0.3.0, egg v0.4.5, 
 
-## main dataset
-aoh2020 <- read_csv("../Data/Processed/ForestSpeciesList_AOH2020_ThreatScore_2022-11-16.csv",
+## dataset for the 11601 specices for Figs 1 and 2
+aoh2020 <- read_csv("./Output/ForestSpeciesList_AOH2020.csv",
                     col_types = cols(Class="f", Category="f", Habitat="f", PopTrend="f", ForestDependency="f")) %>% 
   mutate(Class = factor(Class, levels=c("AMPHIBIA", "AVES", "MAMMALIA", "REPTILIA"),
                         labels=c("Amphibians", "Birds", "Mammals", "Reptiles")),
@@ -43,20 +35,43 @@ summary(aoh2020)
 #                                    NT: 977                            
 #                                    LC:7107    
 
-## taxa silhouette (uid from website)
-amphibia <- image_data("c387bde8-a9de-4101-928b-e99f2a7a33e5", size=256)[[1]]
-aves <- image_data("3a4cdd72-e553-40ad-838e-3b23037b2010", size=256)[[1]]
-mammalia <- image_data("87047da1-b40e-4b31-8492-4db262f129f5", size=256)[[1]]
-reptilia <- image_data("4210000f-4b54-49e7-8a81-6f36ae567f67", size=256)[[1]]
-# using annotation_custom doesnt work; it plots the same image for each facet
-# annotation_custom(grid::rasterGrob(amphibia, interpolate=TRUE), xmin=0.3, xmax=0.8, ymin=300, ymax=400) +
-# using geom_custom with grid::rasterGrob in grob_fun argument instead
-as <- list(amphibia, aves, mammalia, reptilia)
-asData <- data.frame(Class=c("Amphibians", "Birds", "Mammals", "Reptiles"), data=I(as),
-                     x=0.7, y1=c(800,4000,1000,1000),
-                     y2=0.75)
+## dataset for observed median value in IPLs for 3 indices for Fig 3 and SFig 1
+medDF <- read_csv("./Output/ObservedMedianValue.csv") %>% 
+  pivot_wider(names_from=Scenario,
+              values_from=Value)
 
-## ---- fig 1 - range histograms ----
+## regional information for Fig 4, SFigs 1-6
+regionsDF <- data.frame(Country = c("NCL","AUS",
+                                    "PAK","CHN","MYS","TWN","LKA","PHL","IDN","KHM","NPL","BGD","VNM","LAO","IND","MMR","THA",
+                                    "CMR","NGA","RWA","COD","KEN","UGA","CIV","CAF","TGO","BEN","TZA","GAB","ETH","COG","BDI",
+                                    "CRI","DMA","GUY","BRA","SLV","PAN","SUR","BLZ","GUF","HND","PER","BOL","GTM","NIC",
+                                    "MEX","ARG","PRY","USA","VEN","COL","ECU"),
+                        Region = c(rep("Oceania", 2),
+                                   rep("Asia", 15),
+                                   rep("Africa", 15),
+                                   rep("Americas", 21)))
+## an additional plot to label continents for Fig 4 and SFig 2-6
+p2 <- tibble(ymin = c(0,2,18,33), ymax = c(2,18,33,54), fill = c("Oceania", "Asia", "Africa", "Americas\n*")) %>% 
+  ggplot() +
+  geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
+  geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
+  scale_y_continuous(breaks = seq(1, 54), expand = expansion(mult = c(0, 0))) +
+  scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
+  guides(fill = "none") +
+  theme_void()
+
+## dataset for the mean difference between IPL and outside for 3 indices for Fig 4 and SFig 2-5
+diffDF <- read_csv("./Output/MeanDifferences.csv",
+                   col_types=cols(Scenario='f', Country='f', Taxa='f', Area='f', Value='d', pValue='d')) %>% 
+  left_join(regionsDF, by="Country") %>% 
+  mutate(Significant = case_when(pValue < 0.05 & Value > 0 ~ "SigPos",
+                                 pValue < 0.05 & Value < 0 ~ "SigNeg",
+                                 TRUE ~ "NotSig"),
+         Significant = factor(Significant, levels=c("SigPos", "SigNeg","NotSig")),
+         Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
+         Scenario = factor(Scenario, levels=c("SR","TS","IR"), labels=c("Species Richness","Extinction vulnerability", "Range-size rarity")))
+
+## ---- Fig 1 - range histograms ----
 ## violin plot summaries of fraction of overlap for
 ## A. all species
 ## B. threatened species only
@@ -80,8 +95,16 @@ class20_thr <- aoh2020 %>%
                           labels=c("None", "PA", "IPL")),
          Class = factor(Class, labels=c("Amphibians", "Birds", "Mammals", "Reptiles")))
 
-# change the x value for asData so it fits
-# asData$x = 0.5
+# To see the additionality of ILs only 
+class20 <- aoh2020 %>% 
+  select(Class, Category, fracIL, fracPA, fracPIA, fracUnPro) %>% 
+  pivot_longer(cols=fracIL:fracUnPro, names_to="ProType", names_prefix="frac", values_to="FracCovered") %>% 
+  mutate(ProType = factor(ProType, levels=c("UnPro","PA","PIA","IL"),
+                          labels=c("None","PA only","PIA only","IL only")),
+         Class = factor(Class, labels=c("Amphibians", "Birds", "Mammals", "Reptiles"))) %>% 
+  group_by(ProType, Class) %>% 
+  summarise(meanFrac = mean(FracCovered),
+            medFrac = median(FracCovered))
 
 # facet wrap by class
 p1 <- ggplot(class20, aes(x=ProType, y=FracCovered)) +
@@ -96,9 +119,6 @@ p1 <- ggplot(class20, aes(x=ProType, y=FracCovered)) +
         axis.text=element_text(size=10),
         strip.background = element_blank(),
         strip.text = element_blank())
-  # geom_custom(data = asData, aes(data=data, x=x, y=y2),
-  #             grob_fun = function(x) grid::rasterGrob(x, interpolate = TRUE, width=unit(1,'cm'))) +
-  # expand_limits(x=c(0, 3))
 
 p2 <- ggplot(class20_thr, aes(x=ProType, y=FracCovered)) +
   facet_grid(rows=vars(Class)) +
@@ -110,15 +130,13 @@ p2 <- ggplot(class20_thr, aes(x=ProType, y=FracCovered)) +
   theme_classic() +
   theme(axis.title=element_text(size=11),
         axis.text=element_text(size=10))
-        # strip.background = element_blank(),
-        # strip.text = element_blank())
-
+        
 fig1 <- p1 + p2 + plot_annotation(tag_levels="A") &
   theme(plot.tag=element_text(size=10))
 ggsave("../Output/Manuscript/Figure1_2023-03-08.png",
        fig1, width=8, height=4.4, dpi=300)
 
-## ---- fig 2 - range overlap bars ----
+## ---- Fig 2 - range overlap bars ----
 # summary figure of no. of species in
 # A. different areas (none, PA or IPL) for each category
 # B. different red list category (DD, threatened, NT, LC) for each % of overlap
@@ -150,8 +168,6 @@ sumNONE <- aoh2020 %>%
 d1 <- bind_rows(sumNONE, sumPA, sumPIA, sumIPL) %>% 
   mutate(Area = factor(Area, levels=c("None","PA only","PIA only","IPL only"))) 
 
-# thrPalette <- c("#67000d","#fc7050","#404040")
-# dark red, dark pink, dark grey
 thrPalette <- c("#d42020", "#fdbea5","#404040")
 # red, light pink, dark grey
 
@@ -181,23 +197,18 @@ thrPalette2 <- c("#404040","#bababa","#fdbea5","#fc7050","#d42020","#67000d")
 p1 <- ggplot(d1) +
   facet_grid(rows=vars(Class), scales="free") +
   geom_col(aes(x=Area, y=n, colour = NewCategory, fill=NewCategory), width=0.4)+ 
-  # position=position_stack(reverse=TRUE)) +
   ylab('No. of species') +
   xlab('') +
   labs(fill="IUCN Red List \ncategories") +
   guides(colour="none") +
-  scale_fill_manual(values=thrPalette) + # scale_fill_grey()
-  scale_colour_manual(values=thrPalette) + # scale_colour_grey()
+  scale_fill_manual(values=thrPalette) + 
+  scale_colour_manual(values=thrPalette) + 
   theme_classic() +
   theme(axis.title=element_text(size=11),
         axis.text=element_text(size=10),
-        # strip.background = element_blank(),
-        # strip.text = element_blank(),
         legend.title=element_text(size=10),
         legend.text=element_text(size=8),
-        legend.position='bottom') #+
-  # geom_custom(data = asData, aes(data=data, x=x, y=y1),
-  #             grob_fun = function(x) grid::rasterGrob(x, interpolate = TRUE, width=unit(1,'cm')))
+        legend.position='bottom')
 
 p2 <- ggplot(d2) +
   facet_grid(rows=vars(Class), scales="free") +
@@ -207,15 +218,13 @@ p2 <- ggplot(d2) +
   xlab('') +
   labs(fill="Habitat overlap \nwith IPLs (%)") +
   guides(fill=guide_legend(reverse=TRUE), colour="none") +
-  scale_fill_manual(values=thrPalette2) + # scale_fill_grey()
-  scale_colour_manual(values=thrPalette2) + # scale_colour_grey()
+  scale_fill_manual(values=thrPalette2) + 
+  scale_colour_manual(values=thrPalette2) + 
   theme_classic() +
   theme(axis.title=element_text(size=11),
         axis.text=element_text(size=10),
         legend.title=element_text(size=10),
         legend.text=element_text(size=8),
-        # strip.background = element_blank(),
-        # strip.text = element_blank(),
         legend.position='bottom') 
   
 # need to make plots a bit wider so legend doesn't get cut off. 
@@ -224,21 +233,10 @@ fig2 <- p1 + p2 + plot_annotation(tag_levels="A") &
 ggsave("../Output/Manuscript/Figure2_2023-03-20.png",
        fig2, width=7.2, height=5.8, dpi=300)
 
-
-
-## ---- fig 3 - actual values in IPL----
+## ---- Fig 3 - actual values in IPL----
 ## map of countries with values of 
 ## A species richness, B threat score, C inverse range
 
-# mean/median value in IPL (going with median values)
-obsMeanDF <- read.csv("../Data/Processed/CountryData/ObservedMeanValue.csv") %>% 
-  pivot_wider(names_from=Scenario,
-              values_from=Value) %>% 
-  select(-c(Taxa,Area))
-obsMedDF <- read.csv("../Data/Processed/CountryData/ObservedMedianValue_2023-02-10.csv") %>% 
-  pivot_wider(names_from=Scenario,
-              values_from=Value) %>% 
-  select(-c(Taxa,Area))
 # get country polygons from natural earth
 # NOTE: need to use scale=10 for small countries like DMA to be included
 # but ne considers French Guiana (GUF), Guadeloupe (GDP) and Martinique (MTQ)
@@ -254,7 +252,8 @@ world <- ne_countries(scale=10,returnclass='sf') %>%
   st_crop(xmin=-115,ymin=-34.12812,xmax=180,ymax=34.98406) %>% 
   mutate(iso_a3 = case_when(adm0_a3=="FRA"~"GUF",
                             TRUE~iso_a3)) %>% 
-  left_join(obsMedDF, by=c("iso_a3"="Country"))
+  left_join(medDF, by=c("iso_a3"="Country")) %>% 
+  select(-c(Taxa,Area))
 
 p1 <- ggplot(data=world) +
   geom_sf(aes(fill=SR)) +
@@ -278,9 +277,14 @@ p2 <- ggplot(data=world) +
         plot.margin=grid::unit(c(0,0,0,0), "mm"))  + 
   guides(fill=guide_colourbar(title.vjust=1))
 
-# for IR, FJI, DMA & NCL >>>> rest (cut-off ~ 5e-05)
-# but only FJI and DMA is >2sd from mean (7.204476e-05)
-p3 <- ggplot(data=filter(world, IR<0.00005|is.na(IR))) +
+# outliers = 1.5*IQR
+outlier_values <- boxplot.stats(medDF$IR)$out
+# DMA,NCL,PAK,USA (IR>1.3e-05) but that would change the visualisation
+# TZA looks like they've got high range-size rarity then.
+# maybe just remove DMA & NCL since they're small islands, not v visible anyway
+# (cut-off ~ 5e-05)
+# but only DMA is >2sd from mean (7.204476e-05)
+p3 <- ggplot(data=filter(world, IR<5e-05|is.na(IR))) +
   theme_void() +
   geom_sf(aes(fill=IR)) +
   scale_fill_distiller(palette='YlOrRd', direction=1, na.value="#bababa") +
@@ -293,21 +297,59 @@ p3 <- ggplot(data=filter(world, IR<0.00005|is.na(IR))) +
 
 fig3 <- p1 / p2 / p3 + plot_annotation(tag_levels="A") &
   theme(plot.tag=element_text(size=10))
-ggsave("../Output/Manuscript/Figure3_Median_2023-02-15.png",
+ggsave("../Output/Manuscript/Figure3_Median_2023-04-03.png",
        fig3, width=6.83, height=5.75, dpi=300)
 
-#### scatter plot for SOM ####
-obsMeanDF <- read.csv("../Data/Processed/CountryData/ObservedMeanValue.csv")
-obsMedDF <- read.csv("../Data/Processed/CountryData/ObservedMedianValue_2023-02-10.csv")
-regionsDF <- data.frame(Country = c("SLB","NCL","AUS","FJI",
-                                  "PAK","CHN","MYS","TWN","LKA","PHL","IDN","KHM","NPL","BGD","VNM","LAO","IND","MMR","THA",
-                                  "CMR","NGA","RWA","COD","KEN","UGA","CIV","CAF","TGO","BEN","TZA","GAB","ETH","COG","BDI",
-                                  "CRI","DMA","GUY","BRA","SLV","PAN","SUR","BLZ","GUF","HND","PER","BOL","GTM","NIC","MEX","ARG","PRY","USA","VEN","COL","ECU"),
-                      Region = c(rep("Oceania", 4),
-                                 rep("Asia", 15),
-                                 rep("Africa", 15),
-                                 rep("Americas", 21)))
-df <- obsMedDF %>% 
+## ---- Fig 4 - mean difference plots ----
+## difference in mean values between IPL and 10 km buffer
+## for species richness, threat score and inverse range
+## (difference between IPL and 50 km buffer or all outside in SOM)
+
+DF <- diffDF %>% 
+  filter(Area=="buff10",
+         Taxa=="All") %>% 
+  filter(Country!="USA" & Country!="DMA") # skews plotting for TS and IR when included
+# mutate(Country = tidytext::reorder_within(Country, Value, within=Index))
+# tidytext::reorder_within is pretty neat but doesnt work cos I am not
+# trying to include region as a facet_grid, I just want the countries
+# to be ordered and shown according to region
+
+# instead try creating a separate column determining order 
+# according to value within the regions for each index
+new_order <- DF %>% 
+  dplyr::group_by(Region, Scenario) %>% 
+  do(tibble(al=levels(reorder(interaction(.$Scenario, .$Region, .$Country, drop=TRUE), .$Value)))) %>% 
+  pull(al)
+
+DF <- DF %>% 
+  mutate(al = factor(interaction(Scenario, Region, Country), levels=new_order))
+
+sigPalette <- c("#EE6677","#4477AA","#BBBBBB")
+# red, blue, grey
+
+p1 <- ggplot(DF, aes(x=Value, y=al, colour=Significant)) +
+  facet_wrap(~Scenario, scales="free") +
+  # tidytext::scale_y_reordered() +
+  # geom_segment(aes(x=Min, y=Country, xend=Max, yend=Country), colour="#08519C", size=1, na.rm=TRUE) +
+  geom_vline(xintercept=0, linetype=2) +
+  geom_point(size=0.8, na.rm=TRUE) +
+  theme_classic() +
+  scale_colour_manual(values=sigPalette) +
+  ylab("") +
+  xlab("Difference between mean value in IPL and 10-km buffer zone") +
+  theme(axis.title = element_text(size=10),
+        axis.text = element_text(size=8)) +
+  guides(colour="none") +
+  scale_y_discrete(breaks=new_order, labels=gsub("^.*\\.", "", new_order))
+
+fig4 <- p2 + p1 + plot_layout(widths = c(1, 10))
+
+ggsave("../Output/Manuscript/Figure4_2023-04-03.png",
+       fig4, width=7.04, height=5.75, dpi=300) 
+
+#### SFig 1: 3 indices scatter plot ####
+# median values in IPL
+df <- medDF %>% 
   left_join(regionsDF, by="Country") %>% 
   pivot_wider(names_from=Scenario,
               values_from=Value)
@@ -322,124 +364,120 @@ sfig <- ggplot(df, aes(x=SR, y=TS, size=IR, colour=Region)) +
   guides(size=guide_legend(title="Range-size rarity")) +
   theme(axis.title = element_text(size=10),
         axis.text = element_text(size=8))
-ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-02-14.png",
+ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-04-03.png",
        sfig, width=7.04, height=5.75, dpi=300)
-
-## ---- fig 4 - mean difference scatterplots ----
-## difference in mean values between IPL and 10 km buffer
-## for species richness, threat score and inverse range
-## (difference between IPL and 50 km buffer or all outside in SOM)
-
-regionsDF <- data.frame(Country = c("SLB","NCL","AUS","FJI",
-                                  "PAK","CHN","MYS","TWN","LKA","PHL","IDN","KHM","NPL","BGD","VNM","LAO","IND","MMR","THA",
-                                  "CMR","NGA","RWA","COD","KEN","UGA","CIV","CAF","TGO","BEN","TZA","GAB","ETH","COG","BDI",
-                                  "CRI","DMA","GUY","BRA","SLV","PAN","SUR","BLZ","GUF","HND","PER","BOL","GTM","NIC",
-                                  "MEX","ARG","PRY","USA","VEN","COL","ECU"),
-                      Region = c(rep("Oceania", 4),
-                                 rep("Asia", 15),
-                                 rep("Africa", 15),
-                                 rep("Americas", 21)))
-DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue.csv") %>% 
-  filter(Area=="buff10",
-         Taxa=="All") %>% 
-  left_join(regionsDF, by="Country") %>% 
-  mutate(Significant = case_when(pValue < 0.05 & Value > 0 ~ "SigPos",
-                                 pValue < 0.05 & Value < 0 ~ "SigNev",
-                                 TRUE ~ "NotSig"),
-         Significant = factor(Significant, levels=c("SigPos", "SigNev","NotSig")),
-         Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
-         Scenario = factor(Scenario, levels=c("SR","TS","IR"), labels=c("Species Richness","Extinction vulnerability", "Range-size rarity"))) %>% 
-  filter(Country!="USA") # skews plotting for TS and IR when included
-  # mutate(Country = tidytext::reorder_within(Country, Value, within=Index))
-  # tidytext::reorder_within is pretty neat but doesnt work cos I am not
-  # trying to include region as a facet_grid, I just want the countries
-  # to be ordered and shown according to region
   
-  # instead try creating a separate column determining order 
-  # according to value within the regions for each index
-  new_order <- DF %>% 
+#### SFig 2: difference between IPl and 50km buffer and all outside ####
+  ## with facet_wrap, Scenario facet labels appear on top of Area facet labels instead of on right side
+  ## with facet_grid, facet labels in right position but unable to free x-axes so extinction vulnerability
+  ## and range-size rarity are not meaningful to read
+  ## tried using ggh4x::facet_grid2 which does allow free x-axes and has facet labels in right positions
+  ## though they all have variable name, e.g. 'Area: 10-km buffer' or 'Scenario: Species Richness' included  
+  ## in the label instead of just variable value which is annoying but because x axis labels for same
+  ## index (e.g. species richness) are not the same, makes it difficult to visually compare across the
+  ## different areas. Decided to split the three indices to plot and combine using patchwork
+  
+  ## make df for the three indices
+  srDF <- diffDF %>% 
+    filter(Taxa=="All",
+           Scenario=="Species Richness")  %>% 
+    mutate(Area = factor(Area, levels=c("buff10", "buff50", "out"), labels=c("10-km buffer", "50-km buffer", "all outside IPL"))) %>% 
+    filter(Country!="USA") # cos plot skews with it
+  
+  sr_new_order <- srDF %>% 
     dplyr::group_by(Region, Scenario) %>% 
     do(tibble(al=levels(reorder(interaction(.$Scenario, .$Region, .$Country, drop=TRUE), .$Value)))) %>% 
     pull(al)
-
-  DF <- DF %>% 
-    mutate(al = factor(interaction(Scenario, Region, Country), levels=new_order))
-
-  colPalette2 <- c("#EE6677","#4477AA","#BBBBBB")
+  
+  srDF <- srDF %>% 
+    mutate(al = factor(interaction(Scenario, Region, Country), levels=sr_new_order))
+  
+  tsDF <- diffDF %>% 
+    filter(Taxa=="All",
+           Scenario=="Extinction vulnerability") %>% 
+    mutate(Area = factor(Area, levels=c("buff10", "buff50", "out"), labels=c("10-km buffer", "50-km buffer", "all outside IPL"))) %>% 
+    filter(Country!="USA") # cos plot skews with it
+  
+  ts_new_order <- tsDF %>% 
+    dplyr::group_by(Region, Scenario) %>% 
+    do(tibble(al=levels(reorder(interaction(.$Scenario, .$Region, .$Country, drop=TRUE), .$Value)))) %>% 
+    pull(al)
+  
+  tsDF <- tsDF %>% 
+    mutate(al = factor(interaction(Scenario, Region, Country), levels=ts_new_order))
+  
+  irDF <- diffDF %>% 
+    filter(Taxa=="All",
+           Scenario=="Range-size rarity") %>% 
+    mutate(Area = factor(Area, levels=c("buff10", "buff50", "out"), labels=c("10-km buffer", "50-km buffer", "all outside IPL"))) %>% 
+    filter(Country!="USA") # cos plot skews with it
+  
+  ir_new_order <- irDF %>% 
+    dplyr::group_by(Region, Scenario) %>% 
+    do(tibble(al=levels(reorder(interaction(.$Scenario, .$Region, .$Country, drop=TRUE), .$Value)))) %>% 
+    pull(al)
+  
+  irDF <- irDF %>% 
+    mutate(al = factor(interaction(Scenario, Region, Country), levels=ir_new_order))
+  
+  ## plot the three figures
+  sigPalette <- c("#EE6677","#4477AA","#BBBBBB")
   # red, blue, grey
   
-  p1 <- ggplot(DF, aes(x=Value, y=al, colour=Significant)) +
-    facet_wrap(~Scenario, scales="free") +
-    # tidytext::scale_y_reordered() +
-    # geom_segment(aes(x=Min, y=Country, xend=Max, yend=Country), colour="#08519C", size=1, na.rm=TRUE) +
+  sr_p1 <- ggplot(srDF, aes(x=Value, y=al, colour=Significant)) +
+    facet_grid(rows=vars(Scenario), cols=vars(Area), scales="fixed") +
     geom_vline(xintercept=0, linetype=2) +
     geom_point(size=0.8, na.rm=TRUE) +
     theme_classic() +
-    scale_colour_manual(values=colPalette2) +
+    scale_colour_manual(values=sigPalette) +
     ylab("") +
-    xlab("Difference between mean value in IPL and 10 km buffer zone") +
+    xlab("") +
     theme(axis.title = element_text(size=10),
-          axis.text = element_text(size=8)) +
+          axis.text = element_text(size=7),
+          panel.spacing.x = unit(4, "mm")) +
     guides(colour="none") +
-    scale_y_discrete(breaks=new_order, labels=gsub("^.*\\.", "", new_order))
+    scale_y_discrete(breaks=sr_new_order, labels=gsub("^.*\\.", "", sr_new_order))
   
-  # make an additional plot to label continents
-  p2 <- tibble(ymin = c(0,4,20,35), ymax = c(4,20,35,56), fill = c("Oceania", "Asia", "Africa", "Americas\n*")) %>% 
-    ggplot() +
-    geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
-    geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
-    scale_y_continuous(breaks = seq(1, 55), expand = expansion(mult = c(0, 0))) +
-    scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
-    guides(fill = "none") +
-    theme_void()
-  
-  fig4 <- p2 + p1 + plot_layout(widths = c(1, 10))
-  
-  ggsave("../Output/Manuscript/Figure4_2023-02-13.png",
-         fig4, width=7.04, height=5.75, dpi=300) 
-  
-## for buff50 and out for SOM
-  DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue.csv") %>% 
-    filter(Taxa!="All",
-           Area=="out") %>% 
-    left_join(regions, by="Country") %>% 
-    mutate(Significant = case_when(pValue < 0.05 & Value > 0 ~ "SigPos",
-                                   pValue < 0.05 & Value < 0 ~ "SigNev",
-                                   TRUE ~ "NotSig"),
-           Significant = factor(Significant, levels=c("SigPos", "SigNev","NotSig")),
-           Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas"))) %>% 
-    filter(Country!="USA") # cos plot skews with it
-
-  p1 <- ggplot(DF, aes(x=Value, y=al, colour=Significant)) +
-    facet_wrap(~Scenario, scales="free") +
+  ts_p1 <- ggplot(tsDF, aes(x=Value, y=al, colour=Significant)) +
+    facet_grid(rows=vars(Scenario), cols=vars(Area), scales="fixed") +
     geom_vline(xintercept=0, linetype=2) +
     geom_point(size=0.8, na.rm=TRUE) +
     theme_classic() +
-    scale_colour_manual(values=colPalette2) +
+    scale_colour_manual(values=sigPalette) +
+    ylab("") +
+    xlab("") +
+    theme(axis.title = element_text(size=10),
+          axis.text = element_text(size=7),
+          strip.text.x = element_blank(),
+          panel.spacing.x = unit(4, "mm")) +
+    guides(colour="none") +
+    scale_y_discrete(breaks=ts_new_order, labels=gsub("^.*\\.", "", ts_new_order))
+  
+  ir_p1 <- ggplot(irDF, aes(x=Value, y=al, colour=Significant)) +
+    facet_grid(rows=vars(Scenario), cols=vars(Area), scales="fixed") +
+    geom_vline(xintercept=0, linetype=2) +
+    geom_point(size=0.8, na.rm=TRUE) +
+    theme_classic() +
+    scale_colour_manual(values=sigPalette) +
     ylab("") +
     xlab("Difference between mean value in IPL and outside IPL") +
     theme(axis.title = element_text(size=10),
-          axis.text = element_text(size=8)) +
+          axis.text = element_text(size=7),
+          strip.text.x = element_blank(),
+          panel.spacing.x = unit(4, "mm")) +
     guides(colour="none") +
-    scale_y_discrete(breaks=new_order, labels=gsub("^.*\\.", "", new_order))
-
-  sfig4 <- p2 + p1 + plot_layout(widths = c(1, 10))
+    scale_y_discrete(breaks=ir_new_order, labels=gsub("^.*\\.", "", ir_new_order))
   
-  ggsave("../Output/Manuscript/SFigure_IPLvsOutside_2023-02-13.png",
-         sfig4, width=7.04, height=5.75, dpi=300) 
+  sfig2 <- (p2 + sr_p1 + plot_layout(widths = c(1, 10))) / (p2 + ts_p1 + plot_layout(widths = c(1, 10))) / (p2 + ir_p1 + plot_layout(widths = c(1, 10))) 
   
-  ## ---- sfig sep taxa ----  
-  #### Species richnes ####
-  DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue.csv") %>% 
+  ggsave("../Output/Manuscript/SFigure_IPLvsOutside_2023-04-03.png",
+         sfig2, width=9, height=15.4, dpi=300) 
+  
+#### SFig 3: Species richness ####
+  DF <- diffDF %>% 
     filter(Taxa!="All",
-           Scenario=="SR") %>% 
-    left_join(regions, by="Country") %>% 
-    mutate(Significant = case_when(pValue < 0.05 & Value > 0 ~ "SigPos",
-                                   pValue < 0.05 & Value < 0 ~ "SigNev",
-                                   TRUE ~ "NotSig"),
-           Significant = factor(Significant, levels=c("SigPos", "SigNev","NotSig")),
-           Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
-           Country = factor(Country, levels=c("SLB","NCL","AUS","FJI",
+           Scenario=="Species Richness") %>% 
+    mutate(Country = factor(Country, levels=c("NCL","AUS",
                                               "PAK","MYS","CHN","TWN","LKA","PHL","IDN","KHM",
                                               "NPL","BGD","VNM","LAO","IND","MMR","THA",
                                               "CMR","NGA","RWA","COD","KEN","UGA","CIV","CAF",
@@ -453,37 +491,31 @@ DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue
     geom_vline(xintercept=0, linetype=2) +
     geom_point(size=0.8, na.rm=TRUE) +
     theme_classic() +
-    scale_colour_manual(values=colPalette2) +
+    scale_colour_manual(values=sigPalette) +
     ylab("") +
-    xlab("Difference between mean value of species richness in IPL and 10 km buffer area") +
+    xlab("Difference between mean value of species richness in IPL and 10-km buffer area") +
     theme(axis.title = element_text(size=10),
           axis.text = element_text(size=8)) +
     guides(colour="none") 
-  # make an additional plot to label continents
-  p2 <- tibble(ymin = c(0,4,20,35), ymax = c(4,20,35,56), fill = c("Oceania", "Asia", "Africa", "Americas")) %>% 
+  # make an additional plot to label continents (this inc USA)
+  p2b <- tibble(ymin = c(0,2,18,33), ymax = c(2,18,33,54), fill = c("Oceania", "Asia", "Africa", "Americas")) %>% 
     ggplot() +
     geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
     geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
-    scale_y_continuous(breaks = seq(1, 55), expand = expansion(mult = c(0, 0))) +
+    scale_y_continuous(breaks = seq(1, 54), expand = expansion(mult = c(0, 0))) +
     scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
     guides(fill = "none") +
     theme_void()
-  sfig_sr <- p2 + p1 + plot_layout(widths = c(1, 10))
+  sfig_sr <- p2b + p1 + plot_layout(widths = c(1, 10))
   
-  ggsave("../Output/Manuscript/SFigure_SepTaxa_SR_2023-02-13.png",
+  ggsave("../Output/Manuscript/SFigure_SepTaxa_SR_2023-04-03.png",
          sfig_sr, width=7.04, height=5.75, dpi=300) 
   
-  #### threat score ####
-  DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue.csv") %>% 
+#### SFig 4: extinction vulnerability ####
+  DF <- diffDF %>% 
     filter(Taxa!="All",
-           Scenario=="TS") %>% 
-    left_join(regions, by="Country") %>% 
-    mutate(Significant = case_when(pValue < 0.05 & Value > 0 ~ "SigPos",
-                                   pValue < 0.05 & Value < 0 ~ "SigNev",
-                                   TRUE ~ "NotSig"),
-           Significant = factor(Significant, levels=c("SigPos", "SigNev","NotSig")),
-           Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
-           Country = factor(Country, levels=c("FJI","SLB","NCL","AUS",
+           Scenario=="Extinction vulnerability") %>% 
+    mutate(Country = factor(Country, levels=c("NCL","AUS",
                                               "VNM","THA","NPL","IDN","MMR","PHL",
                                               "KHM","PAK","CHN","IND","MYS","BGD",
                                               "LKA","TWN","LAO",
@@ -501,40 +533,23 @@ DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue
     geom_vline(xintercept=0, linetype=2) +
     geom_point(size=0.8, na.rm=TRUE) +
     theme_classic() +
-    scale_colour_manual(values=colPalette2) +
+    scale_colour_manual(values=sigPalette) +
     ylab("") +
-    xlab("Difference between mean value of threat score in IPL and 10 km buffer area") +
+    xlab("Difference between mean value of threat score in IPL and 10-km buffer area") +
     theme(axis.title = element_text(size=10),
           axis.text = element_text(size=8)) +
     guides(colour="none") 
-  # make an additional plot to label continents
-  p2 <- tibble(ymin = c(0,4,20,35), ymax = c(4,20,35,56), fill = c("Oceania", "Asia", "Africa", "Americas\n*")) %>% 
-    ggplot() +
-    geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
-    geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
-    scale_y_continuous(breaks = seq(1, 55), expand = expansion(mult = c(0, 0))) +
-    scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
-    guides(fill = "none") +
-    theme_void()
+  
   sfig_ts <- p2 + p1 + plot_layout(widths = c(1, 10))
   
-  ggsave("../Output/Manuscript/SFigure_SepTaxa_TS_2023-02-13.png",
+  ggsave("../Output/Manuscript/SFigure_SepTaxa_TS_2023-04-03.png",
          sfig_ts, width=7.04, height=5.75, dpi=300) 
   
-  
-  
-  
-  #### range size rarity ####
-  DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue.csv") %>% 
+#### SFig 5: range-size rarity ####
+  DF <- diffDF %>% 
     filter(Taxa!="All",
-           Scenario=="IR") %>% 
-    left_join(regions, by="Country") %>% 
-    mutate(Significant = case_when(pValue < 0.05 & Value > 0 ~ "SigPos",
-                                   pValue < 0.05 & Value < 0 ~ "SigNev",
-                                   TRUE ~ "NotSig"),
-           Significant = factor(Significant, levels=c("SigPos", "SigNev","NotSig")),
-           Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
-           Country = factor(Country, levels=c("NCL","SLB","AUS","FJI",
+           Scenario=="Range-size rarity") %>% 
+    mutate(Country = factor(Country, levels=c("AUS","NCL",
                                               "TWN","IND","VNM","THA","BGD","LKA",
                                               "MMR","CHN","IDN","LAO","KHM","NPL",
                                               "MYS","PHL","PAK",
@@ -545,63 +560,73 @@ DF <- read_csv("../Data/Processed/CountryData/ObservedMeanDifferences_WithPValue
                                               "SLV","ARG","PAN","BOL","VEN","MEX",
                                               "BRA","GUF","SUR","BLZ","GUY","PRY",
                                               "HND","GTM","CRI"))) %>% 
-    filter(Country!="USA")
+    filter(Country!="DMA" & Country !="USA" & Country != "NCL")
   
   p1 <- ggplot(DF, aes(x=Value, y=Country, colour=Significant)) +
     facet_grid(cols=vars(Taxa), scales="free") +
     geom_vline(xintercept=0, linetype=2) +
     geom_point(size=0.8, na.rm=TRUE) +
     theme_classic() +
-    scale_colour_manual(values=colPalette2) +
+    scale_colour_manual(values=sigPalette) +
     ylab("") +
-    xlab("Difference between mean value of inverse range in IPL and 10 km buffer area") +
+    xlab("Difference between mean value of inverse range in IPL and 10-km buffer area") +
     theme(axis.title = element_text(size=10),
-          axis.text = element_text(size=8)) +
+          axis.text.x = element_text(size=8, angle=45, vjust=1, hjust=1)) +
     guides(colour="none") 
-  # make an additional plot to label continents
-  p2 <- tibble(ymin = c(0,4,20,35), ymax = c(4,20,35,56), fill = c("Oceania", "Asia", "Africa", "Americas\n*")) %>% 
+  # make an additional plot to label continents (this exc DMA, USA & NCL)
+  p2c <- tibble(ymin = c(0,1,17,32), ymax = c(1,17,32,53), fill = c("Oceania*", "Asia", "Africa", "Americas*")) %>% 
     ggplot() +
     geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
     geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
-    scale_y_continuous(breaks = seq(1, 55), expand = expansion(mult = c(0, 0))) +
+    scale_y_continuous(breaks = seq(1, 54), expand = expansion(mult = c(0, 0))) +
     scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
     guides(fill = "none") +
     theme_void()
-  sfig_ir <- p2 + p1 + plot_layout(widths = c(1, 10))
   
-  ggsave("../Output/Manuscript/SFigure_SepTaxa_IR_2023-02-13.png",
+  sfig_ir <- p2c + p1 + plot_layout(widths = c(1, 10))
+  
+  ggsave("../Output/Manuscript/SFigure_SepTaxa_IR_2023-04-03.png",
          sfig_ir, width=7.04, height=5.75, dpi=300) 
   
-  
-  
-  
-## ---- fig 5? SFig? biophysical covars ----
+
+#### SFig6: biophysical covars ----
                           
-covar <- read.csv("../Data/Processed/CountryData/Covar_MeanValues.csv") %>% 
+covar <- read_csv("./Output/Covar_MeanValues.csv") %>% 
     separate(col=Covar, into=c("Area","Covar"), sep="_") %>% 
-    mutate(Covar = factor(Covar, labels=c("Elevation", "Population density","Slope","Travel time")),
-           Area = factor(Area, labels=c("10 km buffer", "IPL")),
-           Country = factor(Country, levels=c("SLB","NCL","FJI","AUS",
-                                              "VNM","TWN","THA","PHL","PAK","NPL","MYS","MMR","LKA","LAO","KHM","IND","IDN","CHN","BGD",
-                                              "UGA","TZA","TGO","RWA","NGA","KEN","GAB","ETH","COG","COD","CMR","CIV","CAF","BEN","BDI",
-                                              "VEN","USA","SUR","SLV","PRY","PER","PAN","NIC","MEX","HND","GUY","GUF","GTM","ECU","DMA","CRI","COL","BRA","BOL","BLZ","ARG"))) 
+    pivot_wider(names_from=Area, values_from=MeanValue) %>% 
+    mutate(meanDiff = IPL-buff10,
+           Covar = factor(Covar, levels=c("elevation","slope","popDens","travelTime"),
+                          labels=c("Elevation","Slope","Population density","Travel time")),
+           Country = factor(Country, levels=c("NCL","AUS",
+                                              "VNM","TWN","THA","PHL","PAK","NPL","MYS",
+                                              "MMR","LKA","LAO","KHM","IND","IDN","CHN","BGD",
+                                              "UGA","TZA","TGO","RWA","NGA","KEN","GAB","ETH",
+                                              "COG","COD","CMR","CIV","CAF","BEN","BDI",
+                                              "VEN","USA","SUR","SLV","PRY","PER","PAN","NIC",
+                                              "MEX","HND","GUY","GUF","GTM","ECU","DMA","CRI",
+                                              "COL","BRA","BOL","BLZ","ARG")))
   
-test <- covar %>% 
-  filter(!Country %in% c("SLB","NCL","FJI"))
 p1 <- ggplot() +
   facet_wrap(~Covar, scales="free",  nrow=1) +
-  geom_point(data=test, aes(y=Country, x=MeanValue, colour=Area), alpha=0.4) +
-  theme_classic()
-p2 <- tibble(ymin = c(0,4,20,35), ymax = c(4,20,35,56), fill = c("Oceania", "Asia", "Africa", "Americas")) %>% 
+  geom_vline(xintercept=0, linetype=2) +
+  geom_point(data=covar, aes(y=Country, x=meanDiff), size=0.8) +
+  theme_classic() + 
+  ylab("") +
+  xlab("Difference between mean value in IPL and 10 km-buffer area") +
+  theme(axis.title = element_text(size=10),
+        axis.text = element_text(size=8)) 
+  
+# make an additional plot to label continents (this inc USA)
+p2b <- tibble(ymin = c(0,2,18,33), ymax = c(2,18,33,54), fill = c("Oceania", "Asia", "Africa", "Americas")) %>% 
   ggplot() +
   geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
   geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
-  scale_y_continuous(breaks = seq(1, 55), expand = expansion(mult = c(0, 0))) +
+  scale_y_continuous(breaks = seq(1, 54), expand = expansion(mult = c(0, 0))) +
   scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
   guides(fill = "none") +
   theme_void()
 
-fig5 <- p2 + p1 + plot_layout(widths = c(1, 10))
+sfig_covar <- p2b + p1 + plot_layout(widths = c(1, 10))
 
-ggsave("../Output/Manuscript/Figure5_2023-03-08.png",
-       fig5, width=8.84, height=5.75, dpi=300) 
+ggsave("../Output/Manuscript/SFigure_covar_2023-04-03.png",
+       sfig_covar, width=8.84, height=5.75, dpi=300) 

@@ -28,9 +28,9 @@ args <- commandArgs(trailingOnly = TRUE)
 no <- as.numeric(args[1])
 
 countries <- c("ARG","AUS","BDI","BEN","BGD","BLZ","BOL","BRA","CAF","CHN","CIV",
-          "CMR","COD","COG","COL","CRI","DMA","ECU","ETH","FJI","GAB","GTM",
+          "CMR","COD","COG","COL","CRI","DMA","ECU","ETH","GAB","GTM",
           "GUF","GUY","HND","IDN","IND","KEN","KHM","LAO","LKA","MEX","MMR","MYS","NCL",
-          "NGA","NIC","NPL","PAK","PAN","PER","PHL","PRY","RWA","SLB","SLV",
+          "NGA","NIC","NPL","PAK","PAN","PER","PHL","PRY","RWA","SLV",
           "SUR","TGO","THA","TWN","TZA","UGA","USA","VEN","VNM")
 
 ## country polygon

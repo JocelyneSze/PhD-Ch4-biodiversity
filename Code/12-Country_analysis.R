@@ -13,9 +13,9 @@ setwd('/file/path')
 
 scenario = c("SR","TS", "IR") 
 countries <- c("ARG","AUS","BDI","BEN","BGD","BLZ","BOL","BRA","CAF","CHN","CIV",
-          "CMR","COD","COG","COL","CRI","DMA","ECU","ETH","FJI","GAB","GTM",
+          "CMR","COD","COG","COL","CRI","DMA","ECU","ETH","GAB","GTM",
           "GUF","GUY","HND","IDN","IND","KEN","KHM","LAO","LKA","MEX","MMR","MYS","NCL",
-          "NGA","NIC","NPL","PAK","PAN","PER","PHL","PRY","RWA","SLB","SLV",
+          "NGA","NIC","NPL","PAK","PAN","PER","PHL","PRY","RWA","SLV",
           "SUR","TGO","THA","TWN","TZA","UGA","USA","VEN","VNM")
 vert = c("Amphibia", "Aves", "Mammalia", "Reptilia")
 
@@ -65,7 +65,7 @@ for(i in 1:length(scenario)){
 
   for(j in 1:length(countries)){
     cat(j, "country is", countries[j], "\n")
-    countryFile <- paste0("./CountryData_2023-02-09/All_taxa_", countries[j], ".csv")
+    countryFile <- paste0("./CountryData/All_taxa_", countries[j], ".csv")
     countryDF <- fread(countryFile)
   
     #### for combined taxa ####
@@ -123,7 +123,7 @@ for(i in 1:length(scenario)){
     
     #### for separate taxa
     cat("for separate taxa", "\n")
-    countryFile <- paste0("./CountryData_2023-02-09/Sep_taxa_",scenario[i],'_',countries[j], ".csv")
+    countryFile <- paste0("./CountryData/Sep_taxa_",scenario[i],'_',countries[j], ".csv")
     countryDF <- fread(countryFile)
     
     for(k in 1:length(vert)){
@@ -148,7 +148,7 @@ for(i in 1:length(scenario)){
     }
   }
 }
-fwrite(finalDF, "./ObservedMeanDifferences_2023-02-10.csv")
+fwrite(finalDF, "./ObservedMeanDifferences.csv")
   
 #### 3. calculate significance ####
 # write a function to compare observed vs permutated differences
@@ -226,5 +226,5 @@ for(i in 1:length(scenario)){
 # combine p value with actualdf
 finalDF2 <- finalDF %>% 
   left_join(actualDF, by=c("Scenario","Country","Taxa","Area")) %>%
-write_csv("./ObservedMeanDifferences_WithPValue.csv")
+write_csv("./MeanDifferences.csv")
 

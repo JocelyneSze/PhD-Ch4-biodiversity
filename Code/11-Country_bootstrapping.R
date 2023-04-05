@@ -18,9 +18,9 @@ args <- commandArgs(trailingOnly = TRUE)
 no <- as.numeric(args[1])
 # args[1] is a value from 1-55 for the relevant countries
 countries <- c("ARG","AUS","BDI","BEN","BGD","BLZ","BOL","BRA","CAF","CHN","CIV",
-          "CMR","COD","COG","COL","CRI","DMA","ECU","ETH","FJI","GAB","GTM",
+          "CMR","COD","COG","COL","CRI","DMA","ECU","ETH","GAB","GTM",
           "GUF","GUY","HND","IDN","IND","KEN","KHM","LAO","LKA","MEX","MMR","MYS","NCL",
-          "NGA","NIC","NPL","PAK","PAN","PER","PHL","PRY","RWA","SLB","SLV",
+          "NGA","NIC","NPL","PAK","PAN","PER","PHL","PRY","RWA","SLV",
           "SUR","TGO","THA","TWN","TZA","UGA","USA","VEN","VNM")
 noOutside50km <- c("DMA", "LAO", "NCL", "NPL", "SLV")
 cat(no, 'the country is', countries[no], '\n')
