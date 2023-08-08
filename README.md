@@ -9,9 +9,15 @@ Files are organised as follows:
 Code folder: contains the code used for cleaning, processing, and analysing the data. 
 
 Output folder: contains six csv files for plotting figures. 
+
 ForestSpeciesList_AOH2020.csv = the 11872 tropical forest-dependent species and their 2020 Area of Habitat overlap with PAs, IPLs, overlapping areas of both, and unprotected areas. 
+
 ObservedMedianValues.csv = the country-level median values for species richness, extinction vulnerability, and range-size rarity for IPLs. 
+
 ObservedCountryRanges.csv = the country-level minimum, Tukey lower hinge, median, Tukey upper hinge, and maximum values for species richness, extinction vulnerability, and range-size rarity for IPLs. 
+
 ObservedCountryRanges_WithinTropFor.csv = the country-level minimum, Tukey lower hinge, median, Tukey upper hinge, and maximum values for species richness, extinction vulnerability, and range-size rarity for IPLs, only for species whose entire range fall within tropical forest extents (supplementary analysis). 
+
 MeanDifferences.csv = the country-level difference between mean values for species richness, extinction vulnerability, and range-size rarity between IPLs and buffer zone areas. 
+
 Covar_MeanValues.csv = the country-level mean values for elevation, slope, population density, and travel time in IPLs and 10-km buffer zones
