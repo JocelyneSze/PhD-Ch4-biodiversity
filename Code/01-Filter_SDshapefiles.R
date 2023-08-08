@@ -65,7 +65,7 @@ pacman::p_load(tidyverse, sf, raster)
     }
     ####### EXTRACT data #######
     ### read in tropical extent
-    tropFor <- read_sf('../Data/Raw/TropicalForests_GADM_EPSG54009.shp')
+    tropFor <- read_sf('../Data/Raw/Boundaries/TropicalForests_GADM_EPSG54009.shp')
     
     ### list of species range shapefiles
     listFiles <- c('../Data/Raw/IUCN-SpeciesDistributions/AMPHIBIANS/AMPHIBIANS.shp',
@@ -185,7 +185,7 @@ pacman::p_load(tidyverse, sf, raster)
 
   # ---- for birds ----
     ### read in tropical forest extent
-    tropFor <- read_sf('../Data/Raw/TropicalForests_GADM_EPSG54009.shp')
+    tropFor <- read_sf('../Data/Raw/Boundaries/TropicalForests_GADM_EPSG54009.shp')
     
     ### read in list of forest habitat birds downloaded from BirdLife International Datazone search function
     birdList <- read_csv('../Data/Raw/BirdLifeInternational-BOTW2020/ForestSpecies_20210421_23675.csv')
@@ -210,20 +210,27 @@ pacman::p_load(tidyverse, sf, raster)
       # which distributions fall inside tropical polygons
       trop_logical <- lengths(trop) > 0
       birds <- birds[trop_logical,] 
-      
-      
     ### save outputs
     write_sf(birds, '../Data/Raw/BirdLifeInternational-BOTW2020/IntersectsTropical_filtered_EPSG54009_BIRDS.gpkg')
       
+    ### filter those that are within tropical forest extent
+    trop <- st_within(birds, tropFor) 
+    # which distributions fall inside tropical polygons
+    trop_logical <- lengths(trop) > 0
+    birds <- birds[trop_logical,] 
+    ### save outputs
+    write_sf(birds, '../Data/Raw/BirdLifeInternational-BOTW2020/WithinTropical_filtered_EPSG54009_BIRDS.gpkg')
+    
     ### join this species list with info from birdList as common name needed
     spList <- as_tibble(birds) %>% 
-      select(binomial) %>% 
+      dplyr::select(binomial) %>% 
       rename(Species = binomial) %>% 
       distinct() %>% 
       left_join(birdList, by=c('Species'='Scientific name')) %>% 
       rename(CommonName = `English name`) %>% 
-      select(-`Global IUCN Red List Category`)
+      dplyr::select(-`Global IUCN Red List Category`)
     
     write_csv(spList, '../Data/Raw/BirdLifeInternational-BOTW2020/ForestSpeciesList_IntersectsTropical.csv')
+    write_csv(spList, '../Data/Raw/BirdLifeInternational-BOTW2020/ForestSpeciesList_WithinTropical.csv')
     
   

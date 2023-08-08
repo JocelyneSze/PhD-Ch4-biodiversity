@@ -165,4 +165,11 @@ aoh2020v3 <- aoh2020v2 %>%
                                  Class == "MAMMALIA" & is.na(ThreatScore) ~ 8,
                                  Class == "REPTILIA" & is.na(ThreatScore) ~ 6,
                                  TRUE ~ ThreatScore)) %>% 
-  write_csv("../Data/Raw/ForestSpeciesList_AOH2020_ThreatScore.csv")
+  write_csv("../Data/Processed/ForestSpeciesList_AOH2020_ThreatScore.csv")
+
+# ---- within tropical forest extents ----
+withinSp <- read_csv("../Data/Raw/FinalForestSpeciesList_BufferedElevRange_WithinTropFor.csv")
+
+aoh2020_within <- aoh2020v3 %>% 
+  filter(aoh2020v3$Species %in% withinSp$Species)
+write_csv(aoh2020_within, "../Data/Processed/ForestSpeciesList_AOH2020_ThreatScore_WithinTropFor.csv")

@@ -1,8 +1,10 @@
 #### ============ Make figures for manuscript ============== ####
+# Also includes code for analysis of number of species etc. 
 # Note: done in local computer, R version 4.1.1
 
 library(tidyverse)
 library(patchwork) 
+library(prioritizr) # for log-linear interpolation of sufficient AOH
 # for Fig 3 map
 library(sf) 
 library(rnaturalearth)
@@ -23,9 +25,7 @@ aoh2020 <- read_csv("./Output/ForestSpeciesList_AOH2020.csv",
                                  Category=="VU" ~ "Threatened",
                                  Category=="NT" ~ "NT/LC",
                                  TRUE ~ "NT/LC"),
-         NewCategory = factor(NewCategory, levels=c("DD", "Threatened", "NT/LC"))) # 11601 obs
-
-
+         NewCategory = factor(NewCategory, levels=c("Threatened","NT/LC","DD"))) # 11601 obs
 summary(aoh2020)    
 # Species               Class       Category                Habitat    
 # Length:11601       AMPHIBIA:1456   DD:1004   Forest important  :5606  
@@ -33,12 +33,41 @@ summary(aoh2020)
 # Mode  :character   MAMMALIA:1725   EN:1026   Forest generalist :3593  
 #                    REPTILIA:2022   VU:1003                            
 #                                    NT: 977                            
-#                                    LC:7107    
+#                                    LC:7107   
+
+## dataset for Within Tropical Forest for the 1135 species AOH
+aoh2020_within <- read_csv("./Output/ForestSpeciesList_AOH2020_WithinTropFor.csv",
+                           col_types = cols(Class="f", Category="f", Habitat="f", PopTrend="f", ForestDependency="f")) %>% 
+  mutate(Class = factor(Class, levels=c("AMPHIBIA", "AVES", "MAMMALIA", "REPTILIA"),
+                        labels=c("Amphibians", "Birds", "Mammals", "Reptiles")),
+         Category = factor(Category, levels=c("DD", "CR", "EN", "VU", "NT", "LC")),
+         NewCategory = case_when(Category=="DD" ~ "DD",
+                                 Category=="CR" ~ "Threatened",
+                                 Category=="EN" ~ "Threatened",
+                                 Category=="VU" ~ "Threatened",
+                                 Category=="NT" ~ "NT/LC",
+                                 TRUE ~ "NT/LC"),
+         NewCategory = factor(NewCategory, levels=c("Threatened","NT/LC","DD"))) 
+summary(aoh2020_within)
+# Species                 Class     Category               Habitat   
+# Length:1135        Amphibians:517   DD:317   Forest important  :773  
+# Class :character   Birds     :175   CR:203   Forest unimportant:308  
+# Mode  :character   Mammals   :179   EN:216   Forest generalist : 54  
+#                    Reptiles  :264   VU: 98                           
+#                                     NT: 61                           
+#                                     LC:240                           
 
 ## dataset for observed median value in IPLs for 3 indices for Fig 3 and SFig 1
 medDF <- read_csv("./Output/ObservedMedianValue.csv") %>% 
   pivot_wider(names_from=Scenario,
               values_from=Value)
+# dataset for observed median value in IPLs for sp within tropical forest
+medDF <- read_csv("./Output/ObservedCountryRanges_WithinTropFor.csv",
+                  col_types = cols(Scenario="f",Country="f",Taxa="f",Area="f",Min="d",TukeyLH="d",Median="d",TukeyUH="d",Max="d")) %>% 
+  select(-c(Min, TukeyLH, TukeyUH, Max)) %>% 
+  pivot_wider(names_from=Scenario,
+              values_from=Median)
+  
 
 ## regional information for Fig 4, SFigs 1-6
 regionsDF <- data.frame(Country = c("NCL","AUS",
@@ -71,6 +100,71 @@ diffDF <- read_csv("./Output/MeanDifferences.csv",
          Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
          Scenario = factor(Scenario, levels=c("SR","TS","IR"), labels=c("Species Richness","Extinction vulnerability", "Range-size rarity")))
 
+#### range overlap analysis ####                                     
+## No of species that intersect IPL (IL and/or PIA)
+nIPL <- filter(aoh2020, IL_km2>0 | PIA_km2>0)
+# Species               Class      Category                Habitat    
+# Length:8874        AMPHIBIA: 700   DD: 628   Forest important  :3977  
+# Class :character   AVES    :5567   CR: 159   Forest unimportant:1756  
+# Mode  :character   MAMMALIA:1321   EN: 489   Forest generalist :3141  
+#                    REPTILIA:1286   VU: 648                            
+#                                    NT: 729                            
+#                                    LC:6221  
+## No of species that intersect PA and/or IPL
+nPAIPL <- filter(aoh2020, IL_km2>0 | PIA_km2>0 | PA_km2>0)
+# Species               Class      Category                Habitat    
+# Length:10965       AMPHIBIA:1218   DD: 847   Forest important  :5194  
+# Class :character   AVES    :6235   CR: 373   Forest unimportant:2246  
+# Mode  :character   MAMMALIA:1652   EN: 927   Forest generalist :3525  
+#                    REPTILIA:1860   VU: 942                            
+#                                    NT: 925                            
+#                                    LC:6951 
+# For these 10965 sp, how many have >50% of AOH outside PA and/or IPL
+sumPAIPL <- nPAIPL %>% 
+  filter(fracUnPro >= 0.5)
+# Species               Class      Category                Habitat    
+# Length:6205        AMPHIBIA: 516   DD: 377   Forest important  :2696  
+# Class :character   AVES    :3828   CR: 139   Forest unimportant:1217  
+# Mode  :character   MAMMALIA: 895   EN: 480   Forest generalist :2292  
+#                    REPTILIA: 966   VU: 572                            
+#                                    NT: 490                            
+#                                    LC:4147            
+# For all 11601 sp, how many have >50% of AOH outside PA and/or IPL
+nOutside <- filter(aoh2020, fracUnPro >= 0.5)
+
+#        Species                 Class              Category                Habitat         
+# Length:6841        Amphibians: 754/1456 (51.8%)   DD: 534   Forest important  :3108    
+# Class :character   Birds     :3991/6398 (62.4%)   CR: 250   Forest unimportant:1373    
+# Mode  :character   Mammals   : 968/1725 (56.1%)   EN: 579   Forest generalist :2360    
+#                    Reptiles  :1128/2022 (55.8%)   VU: 633                              
+#                                                   NT: 542                              
+#                                                   LC:4303                                              
+
+
+
+## Considering variable area sufficient for species
+protectionTarget <- aoh2020 %>% 
+  dplyr::select(Species, Class, Category, PA_km2:total_km2) %>% 
+  mutate(fracTarget = prioritizr::loglinear_interpolation(x=total_km2,
+                                                          coordinate_one_x=1000,
+                                                          coordinate_one_y=1,
+                                                          coordinate_two_x=250000,
+                                                          coordinate_two_y=0.1),
+         target_km2 = fracTarget * total_km2,
+         # target_km2 = case_when(total_km2<1000 ~ 1*total_km2,
+         #                        total_km2>=1000 & total_km2<250000 ~ 
+         #                        total_km2>=250000 ~ 0.1*total_km2),
+         target_km2 = case_when(target_km2>10000000 ~ 1000000,
+                                TRUE ~ target_km2)) 
+enoughPA <- protectionTarget %>% 
+  filter(PA_km2+PIA_km2 >= target_km2) # 3633 sp
+enoughIPL <- protectionTarget %>% 
+  filter(IL_km2+PIA_km2 >= target_km2) #4935 sp
+inBoth <- inner_join(enoughPA, enoughIPL) # 2823 sp
+enoughPAIPL <- protectionTarget %>% 
+  filter(PA_km2+IL_km2+PIA_km2 >= target_km2) # 6361 sp
+needIL <- anti_join(enoughPAIPL, enoughPA) # 2728 sp
+
 ## ---- Fig 1 - range histograms ----
 ## violin plot summaries of fraction of overlap for
 ## A. all species
@@ -79,7 +173,7 @@ diffDF <- read_csv("./Output/MeanDifferences.csv",
 class20 <- aoh2020 %>% 
   mutate(fracIPL = fracIL + fracPIA,
          fracPA = fracPA + fracPIA) %>% 
-  select(Class, Category, fracIPL, fracPA, fracUnPro) %>% 
+  dplyr::select(Class, Category, fracIPL, fracPA, fracUnPro) %>% 
   pivot_longer(cols=fracIPL:fracUnPro, names_to="ProType", names_prefix="frac", values_to="FracCovered") %>% 
   mutate(ProType = factor(ProType, levels=c("UnPro", "PA","IPL"),
                           labels=c("None", "PA", "IPL")),
@@ -89,22 +183,22 @@ class20_thr <- aoh2020 %>%
   filter(NewCategory == "Threatened") %>% 
   mutate(fracIPL = fracIL + fracPIA,
          fracPA = fracPA + fracPIA) %>% 
-  select(Class, Category, fracIPL, fracPA, fracUnPro) %>% 
+  dplyr::select(Class, Category, fracIPL, fracPA, fracUnPro) %>% 
   pivot_longer(cols=fracIPL:fracUnPro, names_to="ProType", names_prefix="frac", values_to="FracCovered") %>% 
   mutate(ProType = factor(ProType, levels=c("UnPro", "PA","IPL"),
                           labels=c("None", "PA", "IPL")),
          Class = factor(Class, labels=c("Amphibians", "Birds", "Mammals", "Reptiles")))
 
-# To see the additionality of ILs only 
-class20 <- aoh2020 %>% 
-  select(Class, Category, fracIL, fracPA, fracPIA, fracUnPro) %>% 
-  pivot_longer(cols=fracIL:fracUnPro, names_to="ProType", names_prefix="frac", values_to="FracCovered") %>% 
-  mutate(ProType = factor(ProType, levels=c("UnPro","PA","PIA","IL"),
-                          labels=c("None","PA only","PIA only","IL only")),
-         Class = factor(Class, labels=c("Amphibians", "Birds", "Mammals", "Reptiles"))) %>% 
-  group_by(ProType, Class) %>% 
-  summarise(meanFrac = mean(FracCovered),
-            medFrac = median(FracCovered))
+## To see the additionality of ILs only
+# class20 <- aoh2020 %>% 
+#   dplyr::select(Class, Category, fracIL, fracPA, fracPIA, fracUnPro) %>% 
+#   pivot_longer(cols=fracIL:fracUnPro, names_to="ProType", names_prefix="frac", values_to="FracCovered") %>% 
+#   mutate(ProType = factor(ProType, levels=c("UnPro","PA","PIA","IL"),
+#                           labels=c("None","PA only","PIA only","IL only")),
+#          Class = factor(Class, labels=c("Amphibians", "Birds", "Mammals", "Reptiles"))) %>% 
+#   group_by(ProType, Class) %>% 
+#   summarise(meanFrac = mean(FracCovered),
+#             medFrac = median(FracCovered))
 
 # facet wrap by class
 p1 <- ggplot(class20, aes(x=ProType, y=FracCovered)) +
@@ -143,9 +237,9 @@ ggsave("../Output/Manuscript/Figure1_2023-03-08.png",
 
 ## get the dataframe for A
 # for species whose range fall within IL
-sumIPL <- aoh2020 %>% 
-  filter(fracIL==1) %>% 
-  # filter(fracIL != 0) %>% 
+sumIL <- aoh2020 %>% 
+  filter(fracIL==1) %>%
+  # filter(fracIL != 0) %>%
   count(Class, NewCategory) %>% 
   mutate(Area = "IPL only")
 # for species whose range fall within PA
@@ -165,15 +259,15 @@ sumNONE <- aoh2020 %>%
   filter(fracUnPro == 1) %>% 
   count(Class, NewCategory) %>% 
   mutate(Area = "None")
-d1 <- bind_rows(sumNONE, sumPA, sumPIA, sumIPL) %>% 
+d1 <- bind_rows(sumNONE, sumPA, sumPIA, sumIL) %>% 
   mutate(Area = factor(Area, levels=c("None","PA only","PIA only","IPL only"))) 
 
-thrPalette <- c("#d42020", "#fdbea5","#404040")
-# red, light pink, dark grey
+thrPalette <- c("#d42020", "#fdbea5","#bababa")
+# red, light pink, light grey
 
 ## get the dataframe for B
 d2 <- aoh2020 %>% 
-  select(Species, Class, NewCategory, fracIL, fracPIA) %>%
+  dplyr::select(Species, Class, NewCategory, fracIL, fracPIA) %>%
   mutate(fracIPL = fracIL + fracPIA,
          percentHabitat_IPL=case_when(fracIPL==0 ~ 0,
                                       fracIPL<=.2 & fracIPL!=0 ~ 20,
@@ -182,7 +276,7 @@ d2 <- aoh2020 %>%
                                       fracIPL>.6 & fracIPL<=.8 ~ 80,
                                       fracIPL>.8 & fracIPL<1 ~ 99,
                                       TRUE ~ 100)) %>% 
-  select(Class, NewCategory, percentHabitat_IPL) %>% 
+  dplyr::select(Class, NewCategory, percentHabitat_IPL) %>% 
   add_count(Class, NewCategory, percentHabitat_IPL, name="nSpecies_IPL") %>% 
   distinct() %>% 
   arrange(Class, NewCategory, percentHabitat_IPL) %>% 
@@ -191,8 +285,8 @@ d2 <- aoh2020 %>%
                                    labels=c("0", "<20", "20-40", "40-60", "60-80", "80-99", "100"))) %>% 
   filter(percentHabitat_IPL != 0) 
 
-thrPalette2 <- c("#404040","#bababa","#fdbea5","#fc7050","#d42020","#67000d")
-# dark grey,  light grey, med pink, dark pink, red, dark red
+thrPalette2 <- c("#EFF3FF","#C6DBEF","#9ECAE1","#6BAED6","#3182BD","#08519C")
+# Taken from RColorBrewer::brewer.pal(6, 'Blues')
 
 p1 <- ggplot(d1) +
   facet_grid(rows=vars(Class), scales="free") +
@@ -200,7 +294,8 @@ p1 <- ggplot(d1) +
   ylab('No. of species') +
   xlab('') +
   labs(fill="IUCN Red List \ncategories") +
-  guides(colour="none") +
+  guides(colour="none",
+         fill=guide_legend(nrow=2)) +
   scale_fill_manual(values=thrPalette) + 
   scale_colour_manual(values=thrPalette) + 
   theme_classic() +
@@ -208,7 +303,9 @@ p1 <- ggplot(d1) +
         axis.text=element_text(size=10),
         legend.title=element_text(size=10),
         legend.text=element_text(size=8),
-        legend.position='bottom')
+        legend.position='bottom',
+        strip.background = element_blank(),
+        strip.text = element_blank())
 
 p2 <- ggplot(d2) +
   facet_grid(rows=vars(Class), scales="free") +
@@ -230,7 +327,7 @@ p2 <- ggplot(d2) +
 # need to make plots a bit wider so legend doesn't get cut off. 
 fig2 <- p1 + p2 + plot_annotation(tag_levels="A") &
   theme(plot.tag=element_text(size=10))
-ggsave("../Output/Manuscript/Figure2_2023-03-20.png",
+ggsave("../Output/Manuscript/Figure2_2023-08-04.png",
        fig2, width=7.2, height=5.8, dpi=300)
 
 ## ---- Fig 3 - actual values in IPL----

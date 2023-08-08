@@ -39,6 +39,17 @@ speciesList <- read_csv('../Data/Raw/FinalForestSpeciesList.csv') %>%  # 11872
   mutate_cond(Class=='AMPHIBIA', Elev_upper=Elev_upper+300) %>% 
   write_csv('../Data/Raw/FinalForestSpeciesList_BufferedElevRange.csv')
 
+# ---- within tropical forest extents ----
+  allSp <- read_csv('../Data/Raw/FinalForestSpeciesList_BufferedElevRange.csv')
+  iucnData <- read_csv("../Data/Raw/IUCNdata_WithinTropical_allClasses.csv")
+  
+  finalListWithin <- allSp %>% 
+    filter(allSp$Species %in% iucnData$Species) 
+  # 1251 sp (fewer because this list excludes forest generalist (for non-birds)
+  # and other habitats (for birds))
+  write_csv(finalListWithin, "../Data/Raw/FinalForestSpeciesList_BufferedElevRange_WithinTropFor.csv")
+  
+  
 ###### FUNCTION to split shapefile by species #####
 # function to split each taxa shapefile by species 
 split_shapes <- function(shapefile, taxa, path_out){

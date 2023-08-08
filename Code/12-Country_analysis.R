@@ -26,14 +26,18 @@ finalDF <- data.frame(Scenario = as.character(),
                       Country = as.character(),
                       Taxa = as.character(),
                       Area = as.character(),
-                      Value = as.numeric())
+                      Min = as.numeric(),
+                      TukeyLH = numeric(),
+                      Median = numeric(),
+                      TukeyUH = numeric(),
+                      Max = numeric())
 
 for(i in 1:length(scenario)){
   cat("scenario", scenario[i], "\n")
   
   for(j in 1:length(countries)){
     cat(j, "country is", countries[j], "\n")
-    countryFile <- paste0("./CountryData/All_taxa_", countries[j], ".csv")
+    countryFile <- paste0("./CountryData_2023-02-09/All_taxa_", countries[j], ".csv")
     countryDF <- fread(countryFile)
     
     cat("for all taxa combined", "\n")
@@ -45,7 +49,11 @@ for(i in 1:length(scenario)){
                      Country = countries[j],
                      Taxa = "All",
                      Area = "IPL",
-                     Value = median(iplDF$value))
+                     Min = fivenum(iplDF$value)[1],
+                     TukeyLH = fivenum(iplDF$value)[2],
+                     Median = fivenum(iplDF$value)[3],
+                     TukeyUH = fivenum(iplDF$value)[4],
+                     Max = fivenum(iplDF$value)[5])
     finalDF <- finalDF %>%
       bind_rows(DF)
   }

@@ -67,7 +67,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # getting the one species from the index file
 species <- args[1]
 
-# elevation raster where cells not covered by forest in 2010 and 2018 have been masked out
+# elevation raster where cells not covered by forest in 2020 have been masked out
 tmp20 <- rast('./elevation_TropForResampled_maskedForest2020.tif')
 
 # species data to get elevation range
