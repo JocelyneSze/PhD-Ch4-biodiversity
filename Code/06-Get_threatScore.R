@@ -15,12 +15,11 @@ aoh2020 <- read_csv("../Data/Processed/ForestSpeciesList_AOH2020.csv") %>%
          Habitat = factor(Habitat),
          PopTrend = factor(PopTrend),
          ForestDependency = factor(ForestDependency),
-         total_km2 = rowSums(across(Unprotected_km2:catPIA_km2)),
-         PA_km2 = rowSums(across(catIa_km2:catNA_km2)),
-         fracPA = PA_km2/total_km2,
-         fracIL = catIL_km2/total_km2,
-         fracPIA = catPIA_km2/total_km2,
-         fracUnPro = Unprotected_km2/total_km2) %>% 
+         total_nPixels = rowSums(across(Unprotected_nPixels:PIA_nPixels)),
+         fracPA = PA_nPixels/total_nPixels,
+         fracIL = catIL_nPixels/total_nPixels,
+         fracPIA = catPIA_nPixels/total_nPixels,
+         fracUnPro = Unprotected_nPixels/total_nPixels) %>% 
   mutate(ThreatScore = case_when(Category == "LC" ~ 2,
                                  Category == "NT" ~ 4,
                                  Category == "VU" ~ 8,

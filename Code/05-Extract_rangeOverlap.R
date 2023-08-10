@@ -39,7 +39,7 @@ aohFiles <- splitFiles[[setNo]]
 # get the names in the same format as in the FinalForestSpeciesList file
 speciesList <- unlist(lapply(aohFiles, function(x) gsub("_", " ", gsub("^[^-]*-([^.]+).*", "\\1", strsplit(x, "\\.")[[1]][1]))))
 # check if species has already been done
-finishedFile <- read_csv('./ForestSpeciesList_AOH2020_2022-11-16.csv')
+finishedFile <- read_csv('./ForestSpeciesList_AOH2020.csv')
 speciesList <- speciesList[!(speciesList %in% finishedFile$Species)]
 aohFiles <- str_subset(aohFiles, gsub(" ", "_", speciesList))
 
@@ -63,11 +63,11 @@ for(i in 1:length(aohFiles)){
     # get the species info and key in range values
     spDF <- speciesData %>%
       filter(Species %in% spName) %>%
-      mutate(Unprotected_km2 = filter(finalDF, value==0)$count,
-             PA_km2 = filter(finalDF, value==1)$count,
-             IL_km2 = filter(finalDF, value==2)$count,
-             PIA_km2 = filter(finalDF, value==3)$count)
-    write_csv(spDF, './ForestSpeciesList_AOH2020_2022-11-16.csv', append=TRUE) 
+      mutate(Unprotected_nPixels = filter(finalDF, value==0)$count,
+             PA_nPixels = filter(finalDF, value==1)$count,
+             IL_nPixels = filter(finalDF, value==2)$count,
+             PIA_nPixels = filter(finalDF, value==3)$count)
+    write_csv(spDF, './ForestSpeciesList_AOH2020.csv', append=TRUE) 
   }, 
   error=function(e){cat("ERROR: ", conditionMessage(e), "\n")})
   terra::tmpFiles(current=TRUE, orphan=TRUE, old=TRUE, remove=TRUE)

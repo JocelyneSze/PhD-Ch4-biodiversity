@@ -102,7 +102,7 @@ diffDF <- read_csv("./Output/MeanDifferences.csv",
 
 #### range overlap analysis ####                                     
 ## No of species that intersect IPL (IL and/or PIA)
-nIPL <- filter(aoh2020, IL_km2>0 | PIA_km2>0)
+nIPL <- filter(aoh2020, IL_nPixels>0 | PIA_nPixels>0)
 # Species               Class      Category                Habitat    
 # Length:8874        AMPHIBIA: 700   DD: 628   Forest important  :3977  
 # Class :character   AVES    :5567   CR: 159   Forest unimportant:1756  
@@ -111,7 +111,7 @@ nIPL <- filter(aoh2020, IL_km2>0 | PIA_km2>0)
 #                                    NT: 729                            
 #                                    LC:6221  
 ## No of species that intersect PA and/or IPL
-nPAIPL <- filter(aoh2020, IL_km2>0 | PIA_km2>0 | PA_km2>0)
+nPAIPL <- filter(aoh2020, IL_nPixels>0 | PIA_nPixels>0 | PA_nPixels>0)
 # Species               Class      Category                Habitat    
 # Length:10965       AMPHIBIA:1218   DD: 847   Forest important  :5194  
 # Class :character   AVES    :6235   CR: 373   Forest unimportant:2246  
@@ -144,25 +144,22 @@ nOutside <- filter(aoh2020, fracUnPro >= 0.5)
 
 ## Considering variable area sufficient for species
 protectionTarget <- aoh2020 %>% 
-  dplyr::select(Species, Class, Category, PA_km2:total_km2) %>% 
-  mutate(fracTarget = prioritizr::loglinear_interpolation(x=total_km2,
+  dplyr::select(Species, Class, Category, PA_nPixels:total_nPixels) %>% 
+  mutate(fracTarget = prioritizr::loglinear_interpolation(x=total_nPixels,
                                                           coordinate_one_x=1000,
                                                           coordinate_one_y=1,
                                                           coordinate_two_x=250000,
                                                           coordinate_two_y=0.1),
-         target_km2 = fracTarget * total_km2,
-         # target_km2 = case_when(total_km2<1000 ~ 1*total_km2,
-         #                        total_km2>=1000 & total_km2<250000 ~ 
-         #                        total_km2>=250000 ~ 0.1*total_km2),
-         target_km2 = case_when(target_km2>10000000 ~ 1000000,
-                                TRUE ~ target_km2)) 
+         target_nPixels = fracTarget * total_nPixels,
+         target_nPixels = case_when(target_nPixels>10000000 ~ 1000000,
+                                TRUE ~ target_nPixels)) 
 enoughPA <- protectionTarget %>% 
-  filter(PA_km2+PIA_km2 >= target_km2) # 3633 sp
+  filter(PA_nPixels+PIA_nPixels >= target_nPixels) # 3633 sp
 enoughIPL <- protectionTarget %>% 
-  filter(IL_km2+PIA_km2 >= target_km2) #4935 sp
+  filter(IL_nPixels+PIA_nPixels >= target_nPixels) #4935 sp
 inBoth <- inner_join(enoughPA, enoughIPL) # 2823 sp
 enoughPAIPL <- protectionTarget %>% 
-  filter(PA_km2+IL_km2+PIA_km2 >= target_km2) # 6361 sp
+  filter(PA_nPixels+IL_nPixels+PIA_nPixels >= target_nPixels) # 6361 sp
 needIL <- anti_join(enoughPAIPL, enoughPA) # 2728 sp
 
 ## ---- Fig 1 - range histograms ----
@@ -239,19 +236,16 @@ ggsave("../Output/Manuscript/Figure1_2023-03-08.png",
 # for species whose range fall within IL
 sumIL <- aoh2020 %>% 
   filter(fracIL==1) %>%
-  # filter(fracIL != 0) %>%
   count(Class, NewCategory) %>% 
   mutate(Area = "IPL only")
 # for species whose range fall within PA
 sumPA <- aoh2020 %>% 
   filter(fracPA==1) %>% 
-  # filter(fracPA != 0) %>% 
   count(Class, NewCategory) %>% 
   mutate(Area = "PA only")
 # for species whose range fall within PIA
 sumPIA <- aoh2020 %>% 
   filter(fracPIA==1) %>% 
-  # filter(fracPIA != 0) %>% 
   count(Class, NewCategory) %>% 
   mutate(Area = "PIA only")
 # for species whose range fall neither within IPL nor PA
