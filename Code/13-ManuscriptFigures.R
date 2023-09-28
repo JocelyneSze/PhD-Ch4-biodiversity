@@ -35,7 +35,7 @@ summary(aoh2020)
 #                                    NT: 977                            
 #                                    LC:7107   
 
-## dataset for Within Tropical Forest for the 1135 species AOH
+## dataset for Within Tropical Forest for the 1135 species AOH for SFigs 1 and 2
 aoh2020_within <- read_csv("./Output/ForestSpeciesList_AOH2020_WithinTropFor.csv",
                            col_types = cols(Class="f", Category="f", Habitat="f", PopTrend="f", ForestDependency="f")) %>% 
   mutate(Class = factor(Class, levels=c("AMPHIBIA", "AVES", "MAMMALIA", "REPTILIA"),
@@ -57,19 +57,18 @@ summary(aoh2020_within)
 #                                     NT: 61                           
 #                                     LC:240                           
 
-## dataset for observed median value in IPLs for 3 indices for Fig 3 and SFig 1
+## dataset for observed median value in IPLs for 3 indices for Fig 3 and SFig 4
 medDF <- read_csv("./Output/ObservedMedianValue.csv") %>% 
   pivot_wider(names_from=Scenario,
               values_from=Value)
-# dataset for observed median value in IPLs for sp within tropical forest
-medDF <- read_csv("./Output/ObservedCountryRanges_WithinTropFor.csv",
+# dataset for observed median value in IPLs for sp within tropical forest for SFig 3
+medDF_within <- read_csv("./Output/ObservedCountryRanges_WithinTropFor.csv",
                   col_types = cols(Scenario="f",Country="f",Taxa="f",Area="f",Min="d",TukeyLH="d",Median="d",TukeyUH="d",Max="d")) %>% 
   select(-c(Min, TukeyLH, TukeyUH, Max)) %>% 
   pivot_wider(names_from=Scenario,
               values_from=Median)
-  
 
-## regional information for Fig 4, SFigs 1-6
+## regional information for Fig 4, SFigs 5-9
 regionsDF <- data.frame(Country = c("NCL","AUS",
                                     "PAK","CHN","MYS","TWN","LKA","PHL","IDN","KHM","NPL","BGD","VNM","LAO","IND","MMR","THA",
                                     "CMR","NGA","RWA","COD","KEN","UGA","CIV","CAF","TGO","BEN","TZA","GAB","ETH","COG","BDI",
@@ -79,17 +78,8 @@ regionsDF <- data.frame(Country = c("NCL","AUS",
                                    rep("Asia", 15),
                                    rep("Africa", 15),
                                    rep("Americas", 21)))
-## an additional plot to label continents for Fig 4 and SFig 2-6
-p2 <- tibble(ymin = c(0,2,18,33), ymax = c(2,18,33,54), fill = c("Oceania", "Asia", "Africa", "Americas\n*")) %>% 
-  ggplot() +
-  geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
-  geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
-  scale_y_continuous(breaks = seq(1, 54), expand = expansion(mult = c(0, 0))) +
-  scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
-  guides(fill = "none") +
-  theme_void()
 
-## dataset for the mean difference between IPL and outside for 3 indices for Fig 4 and SFig 2-5
+## dataset for the mean difference between IPL and outside for 3 indices for Fig 4 and SFig 5-9
 diffDF <- read_csv("./Output/MeanDifferences.csv",
                    col_types=cols(Scenario='f', Country='f', Taxa='f', Area='f', Value='d', pValue='d')) %>% 
   left_join(regionsDF, by="Country") %>% 
@@ -99,6 +89,16 @@ diffDF <- read_csv("./Output/MeanDifferences.csv",
          Significant = factor(Significant, levels=c("SigPos", "SigNeg","NotSig")),
          Region = factor(Region, levels=c("Oceania","Asia","Africa","Americas")),
          Scenario = factor(Scenario, levels=c("SR","TS","IR"), labels=c("Species Richness","Extinction vulnerability", "Range-size rarity")))
+
+## an additional plot to label continents for Fig 4 and SFig 5-9
+p2 <- tibble(ymin = c(0,2,18,33), ymax = c(2,18,33,54), fill = c("Oceania", "Asia", "Africa", "Americas\n*")) %>% 
+  ggplot() +
+  geom_rect(aes(xmin = 0, xmax = 0.5, ymin = ymin, ymax = ymax, fill = fill)) +
+  geom_text(aes(x = 0.25, y = (ymin  + ymax) / 2, label = fill), angle = 0, size=3) +
+  scale_y_continuous(breaks = seq(1, 54), expand = expansion(mult = c(0, 0))) +
+  scale_x_continuous(breaks = c(0), expand = expansion(mult = c(0, 0))) +
+  guides(fill = "none") +
+  theme_void()
 
 #### range overlap analysis ####                                     
 ## No of species that intersect IPL (IL and/or PIA)
@@ -162,12 +162,12 @@ enoughPAIPL <- protectionTarget %>%
   filter(PA_nPixels+IL_nPixels+PIA_nPixels >= target_nPixels) # 6361 sp
 needIL <- anti_join(enoughPAIPL, enoughPA) # 2728 sp
 
-## ---- Fig 1 - range histograms ----
+## ---- Fig 1 & SFig 1: range histograms ----
 ## violin plot summaries of fraction of overlap for
 ## A. all species
 ## B. threatened species only
 
-class20 <- aoh2020 %>% 
+class20 <- aoh2020 %>% # or aoh2020_within for SFig 1
   mutate(fracIPL = fracIL + fracPIA,
          fracPA = fracPA + fracPIA) %>% 
   dplyr::select(Class, Category, fracIPL, fracPA, fracUnPro) %>% 
@@ -222,19 +222,19 @@ p2 <- ggplot(class20_thr, aes(x=ProType, y=FracCovered)) +
   theme(axis.title=element_text(size=11),
         axis.text=element_text(size=10))
         
-fig1 <- p1 + p2 + plot_annotation(tag_levels="A") &
-  theme(plot.tag=element_text(size=10))
-ggsave("../Output/Manuscript/Figure1_2023-03-08.png",
+fig1 <- p1 + p2 + plot_annotation(tag_levels="a", tag_prefix = "(", tag_suffix = ")") &
+  theme(plot.tag=element_text(size=10, face="bold"))
+ggsave("../Output/Manuscript/Figure1_2023-09-27.png",
        fig1, width=8, height=4.4, dpi=300)
 
-## ---- Fig 2 - range overlap bars ----
+## ---- Fig 2 & SFig 2: range overlap bars ----
 # summary figure of no. of species in
 # A. different areas (none, PA or IPL) for each category
 # B. different red list category (DD, threatened, NT, LC) for each % of overlap
 
 ## get the dataframe for A
 # for species whose range fall within IL
-sumIL <- aoh2020 %>% 
+sumIL <- aoh2020 %>% # or aoh2020_within for SFig 2
   filter(fracIL==1) %>%
   count(Class, NewCategory) %>% 
   mutate(Area = "IPL only")
@@ -319,12 +319,12 @@ p2 <- ggplot(d2) +
         legend.position='bottom') 
   
 # need to make plots a bit wider so legend doesn't get cut off. 
-fig2 <- p1 + p2 + plot_annotation(tag_levels="A") &
-  theme(plot.tag=element_text(size=10))
-ggsave("../Output/Manuscript/Figure2_2023-08-04.png",
+fig2 <- p1 + p2 + plot_annotation(tag_levels="a", tag_prefix="(", tag_suffix=")") &
+  theme(plot.tag=element_text(size=10, face="bold"))
+ggsave("../Output/Manuscript/Figure2_2023-09-27.png",
        fig2, width=7.2, height=5.8, dpi=300)
 
-## ---- Fig 3 - actual values in IPL----
+## ---- Fig 3 & SFig 3: actual values in IPL----
 ## map of countries with values of 
 ## A species richness, B threat score, C inverse range
 
@@ -343,7 +343,7 @@ world <- ne_countries(scale=10,returnclass='sf') %>%
   st_crop(xmin=-115,ymin=-34.12812,xmax=180,ymax=34.98406) %>% 
   mutate(iso_a3 = case_when(adm0_a3=="FRA"~"GUF",
                             TRUE~iso_a3)) %>% 
-  left_join(medDF, by=c("iso_a3"="Country")) %>% 
+  left_join(medDF, by=c("iso_a3"="Country")) %>% # or medDF_within for SFig 3
   select(-c(Taxa,Area))
 
 p1 <- ggplot(data=world) +
@@ -386,9 +386,9 @@ p3 <- ggplot(data=filter(world, IR<5e-05|is.na(IR))) +
         plot.margin=grid::unit(c(0,0,0,0), "mm"))  + 
   guides(fill=guide_colourbar(title.vjust=1))
 
-fig3 <- p1 / p2 / p3 + plot_annotation(tag_levels="A") &
-  theme(plot.tag=element_text(size=10))
-ggsave("../Output/Manuscript/Figure3_Median_2023-04-03.png",
+fig3 <- p1 / p2 / p3 + plot_annotation(tag_levels="a", tag_prefix="(", tag_suffix=")") &
+  theme(plot.tag=element_text(size=10, face="bold"))
+ggsave("../Output/Manuscript/Figure3_Median_2023-09-27.png",
        fig3, width=6.83, height=5.75, dpi=300)
 
 ## ---- Fig 4 - mean difference plots ----
@@ -435,10 +435,10 @@ p1 <- ggplot(DF, aes(x=Value, y=al, colour=Significant)) +
 
 fig4 <- p2 + p1 + plot_layout(widths = c(1, 10))
 
-ggsave("../Output/Manuscript/Figure4_2023-04-03.png",
+ggsave("../Output/Manuscript/Figure4_2023-09-27.png",
        fig4, width=7.04, height=5.75, dpi=300) 
 
-#### SFig 1: 3 indices scatter plot ####
+#### SFig 4: 3 indices scatter plot ####
 # median values in IPL
 df <- medDF %>% 
   left_join(regionsDF, by="Country") %>% 
@@ -458,7 +458,7 @@ sfig <- ggplot(df, aes(x=SR, y=TS, size=IR, colour=Region)) +
 ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-04-03.png",
        sfig, width=7.04, height=5.75, dpi=300)
   
-#### SFig 2: difference between IPl and 50km buffer and all outside ####
+#### SFig 5: difference between IPL & 10km buffer, 50km buffer and all outside ####
   ## with facet_wrap, Scenario facet labels appear on top of Area facet labels instead of on right side
   ## with facet_grid, facet labels in right position but unable to free x-axes so extinction vulnerability
   ## and range-size rarity are not meaningful to read
@@ -564,7 +564,7 @@ ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-04-03.png",
   ggsave("../Output/Manuscript/SFigure_IPLvsOutside_2023-04-03.png",
          sfig2, width=9, height=15.4, dpi=300) 
   
-#### SFig 3: Species richness ####
+#### SFig 6: species richness difference between IPL & 10km buffer for the 4 taxa ####
   DF <- diffDF %>% 
     filter(Taxa!="All",
            Scenario=="Species Richness") %>% 
@@ -602,7 +602,7 @@ ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-04-03.png",
   ggsave("../Output/Manuscript/SFigure_SepTaxa_SR_2023-04-03.png",
          sfig_sr, width=7.04, height=5.75, dpi=300) 
   
-#### SFig 4: extinction vulnerability ####
+#### SFig 7: extinction vulnerability difference between IPL & 10km buffer for the 4 taxa ####
   DF <- diffDF %>% 
     filter(Taxa!="All",
            Scenario=="Extinction vulnerability") %>% 
@@ -636,7 +636,7 @@ ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-04-03.png",
   ggsave("../Output/Manuscript/SFigure_SepTaxa_TS_2023-04-03.png",
          sfig_ts, width=7.04, height=5.75, dpi=300) 
   
-#### SFig 5: range-size rarity ####
+#### SFig 8: range-size rarity difference between IPL & 10km buffer for the 4 taxa ####
   DF <- diffDF %>% 
     filter(Taxa!="All",
            Scenario=="Range-size rarity") %>% 
@@ -680,7 +680,7 @@ ggsave("../Output/Manuscript/SFigure_3indices_Median_2023-04-03.png",
          sfig_ir, width=7.04, height=5.75, dpi=300) 
   
 
-#### SFig6: biophysical covars ----
+#### SFig 9: biophysical covars difference between IPL & 10km buffer  ----
                           
 covar <- read_csv("./Output/Covar_MeanValues.csv") %>% 
     separate(col=Covar, into=c("Area","Covar"), sep="_") %>% 
